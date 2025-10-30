@@ -1,0 +1,69 @@
+# Workspace configuration
+[workspace]
+resolver = "2"
+members = ["fresh", "fresh-macros", "examples"]
+
+# Package metadata
+[workspace.package]
+version = "0.1.0"
+authors = ["Jixiang Liu"]
+description = "A lightweight Retrofit/Forest-style declarative HTTP client on top of reqwest"
+license-file = "LICENSE"
+edition = "2024"
+
+# Define shared dependencies for all workspace members
+[workspace.dependencies]
+
+[workspace.dependencies.fresh]
+path = "fresh"
+
+[workspace.dependencies.fresh-macros]
+path = "fresh-macros"
+
+# Tokio async runtime
+[workspace.dependencies.tokio]
+version = "1.48.0"
+features = ["rt-multi-thread", "macros"]
+
+# Reqwest HTTP client
+[workspace.dependencies.reqwest]
+version = "0.12.24"
+features = ["json", "gzip", "brotli", "deflate", "rustls-tls", "cookies"]
+
+# Serde for serialization/deserialization
+[workspace.dependencies.serde]
+version = "1.0.228"
+features = ["derive"]
+
+# Serde JSON support
+[workspace.dependencies.serde_json]
+version = "1.0.145"
+
+# serde_urlencoded for URL encoding
+[workspace.dependencies.serde_urlencoded]
+version = "0.7.1"
+
+# Thiserror for error handling
+[workspace.dependencies.thiserror]
+version = "2.0.17"
+
+# URL crate for URL parsing and manipulation
+[workspace.dependencies.url]
+version = "2.5.7"
+
+# HTTP crate for HTTP types
+[workspace.dependencies.http]
+version = "1.3.1"
+
+# Syn crate for parsing Rust code (used in fresh-macros)
+[workspace.dependencies.syn]
+version = "2.0.108"
+features = ["full", "extra-traits", "parsing"]
+
+# Proc-macro2 for procedural macros
+[workspace.dependencies.proc-macro2]
+version = "1.0.103"
+
+# Quote crate for quoting Rust code (used in fresh-macros)
+[workspace.dependencies.quote]
+version = "1.0.41"

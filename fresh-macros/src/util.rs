@@ -1,0 +1,34 @@
+//! 宏内部的通用工具。
+//!
+//! - 提取 `Result<T, E>` 的 `T`
+//! - 将字符串 HTTP 方法名映射为 `reqwest::Method` 代码片段
+
+use syn::{ReturnType, Type};
+
+/// 从返回类型中提取 `Result<T, E>` 的 `T`。
+pub fn extract_ok_type(ret: &ReturnType) -> Option<proc_macro2::TokenStream> {
+    let ReturnType::Type(_, ty) = ret else { return None; };
+    if let Type::Path(tp) = &**ty {
+        let seg = tp.path.segments.last()?;
+        if seg.ident == "Result" {
+            if let syn::PathArguments::AngleBracketed(ab) = &seg.arguments {
+                if let Some(syn::GenericArgument::Type(t)) = ab.args.first() {
+                    return Some(quote::quote! { #t });
+                }
+            }
+        }
+    }
+    None
+}
+
+/// 将方法字符串转换为 `reqwest::Method` 代码片段。
+pub fn http_method_tokens(m: &str) -> proc_macro2::TokenStream {
+    match m {
+        "get" => quote::quote! { ::fresh::reqwest::Method::GET },
+        "post" => quote::quote! { ::fresh::reqwest::Method::POST },
+        "put" => quote::quote! { ::fresh::reqwest::Method::PUT },
+        "delete" => quote::quote! { ::fresh::reqwest::Method::DELETE },
+        "patch" => quote::quote! { ::fresh::reqwest::Method::PATCH },
+        _ => quote::quote! { ::fresh::reqwest::Method::GET },
+    }
+}

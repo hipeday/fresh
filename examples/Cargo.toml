@@ -1,0 +1,17 @@
+[package]
+name = "examples"
+version = "0.1.1"
+publish = false
+edition.workspace = true
+license-file.workspace = true
+
+[dev-dependencies]
+fresh.workspace = true
+fresh-macros.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[[example]]
+name = "hello_world"
+path = "hello_world.rs"
