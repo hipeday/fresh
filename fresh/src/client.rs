@@ -39,7 +39,6 @@ impl HttpClientOption {
 }
 
 impl HttpClientOption {
-
     pub fn with_endpoint(endpoint: Url) -> HttpClientOption {
         HttpClientOption {
             endpoint,
@@ -141,12 +140,8 @@ impl HttpClientOptionBuilder {
         self
     }
 
-    /// 构建最终配置
-    ///
-    /// - 若未显式设置 endpoint，则使用 HttpClientOption::default() 的默认值。
-    /// - 若 endpoint 设置为无效 URL，将返回错误。
+    /// 构建最终配置（endpoint 必填）
     pub fn build(self) -> crate::error::Result<HttpClientOption> {
-
         let mut opt = HttpClientOption::default();
 
         let Some(ep) = self.endpoint else {
@@ -166,7 +161,7 @@ impl HttpClientOptionBuilder {
         }
 
         if !self.headers.is_empty() {
-            // 若要覆盖而不是追加，可改为直接赋值：opt.headers = self.headers;
+            // 若要覆盖而不是追加，可改为：opt.headers = self.headers;
             opt.headers.extend(self.headers);
         }
 
@@ -224,7 +219,9 @@ impl HttpClient {
         for (header, value) in &option.headers {
             headers.insert(
                 reqwest::header::HeaderName::from_bytes(header.as_bytes())?,
-                reqwest::header::HeaderValue::from_str(&value)?,
+                // 兼容非 ASCII 的值（如中文）：优先 from_str，失败则回退到原始字节
+                reqwest::header::HeaderValue::from_str(&value)
+                    .or_else(|_| reqwest::header::HeaderValue::from_bytes(value.as_bytes()))?,
             );
         }
 
