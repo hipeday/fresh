@@ -39,31 +39,14 @@ impl MethodExpander {
         Ok(self)
     }
 
+    // 仅初始化 __path，先不生成 __url
     pub fn stage_init(mut self) -> Self {
-        let MethodCtx { endpoint, path, .. } = &self.ctx;
+        let MethodCtx { path, .. } = &self.ctx;
 
-        // 生成 __path 和 __url
         let path_lit = LitStr::new(path, self.ctx.sig_ident.span());
-        let endpoint_stmt = if let Some(ep) = endpoint {
-            let ep_lit = LitStr::new(ep, self.ctx.sig_ident.span());
-            quote! {
-                let __base = ::url::Url::parse(#ep_lit)
-                    .expect("invalid endpoint in #[request(...)]");
-                let __url = __base.join(&__path)
-                    .expect("failed to join endpoint and path");
-            }
-        } else {
-            // 假设 self.core.endpoint() -> Url
-            quote! {
-                let __url = self.core.endpoint().join(&__path)
-                    .expect("failed to join endpoint and path");
-            }
-        };
-
         self.body.extend(quote! {
             // 初始 path 字符串
             let mut __path = #path_lit.to_string();
-            #endpoint_stmt
         });
         self
     }
@@ -80,6 +63,29 @@ impl MethodExpander {
                 });
             }
         }
+        self
+    }
+
+    // 在占位符替换完成后再生成 __url
+    pub fn stage_build_url(mut self) -> Self {
+        let MethodCtx { endpoint, .. } = &self.ctx;
+
+        let url_stmt = if let Some(ep) = endpoint {
+            let ep_lit = LitStr::new(ep, self.ctx.sig_ident.span());
+            quote! {
+                let __base = ::url::Url::parse(#ep_lit)
+                    .expect("invalid endpoint in #[request(...)]");
+                let __url = __base.join(&__path)
+                    .expect("failed to join endpoint and path");
+            }
+        } else {
+            quote! {
+                let __url = self.core.endpoint().join(&__path)
+                    .expect("failed to join endpoint and path");
+            }
+        };
+
+        self.body.extend(url_stmt);
         self
     }
 
@@ -135,7 +141,7 @@ impl MethodExpander {
                     .clone()
                     .unwrap_or_else(|| LitStr::new(&p.ident.to_string(), p.ident.span()));
 
-                // 小工具：判断是否标量（String/str/数字/bool）
+                // 判断是否标量（String/str/数字/bool）
                 fn is_scalar_ty(ty: &Type) -> bool {
                     match ty {
                         Type::Path(tp) => {
@@ -157,7 +163,7 @@ impl MethodExpander {
                 }
 
                 // 取泛型内层类型（Option<T>/Vec<T>）
-                fn first_generic_arg<'a>(ty: &'a Type) -> Option<&'a Type> {
+                fn first_generic_arg(ty: &Type) -> Option<&Type> {
                     if let Type::Path(tp) = ty {
                         if let Some(seg) = tp.path.segments.last() {
                             if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
@@ -191,12 +197,11 @@ impl MethodExpander {
                                     __query_vec.push((::std::borrow::Cow::Borrowed(#key_lit), #ident.to_string()));
                                 });
                             } else {
-                                // 复杂类型 + 显式命名：给出友好错误
                                 self.body.extend(quote! {
                                     compile_error!(concat!(
-                                        "参数 `", stringify!(#ident),
-                                        "` 使用了 #[query(\"…\")] 显式命名，但其类型为结构体/映射等复杂类型。\
-                                        复杂类型请去掉名字，直接写 #[query] 以按字段展开为多个 query 参数。"
+                                        "Parameter `", stringify!(#ident),
+                                            "` uses #[query(\"…\")] with an explicit name, but its type is a struct/map (complex type). ",
+                                            "For complex types, remove the explicit name and use #[query] instead to expand its fields into multiple query parameters."
                                     ));
                                 });
                             }
@@ -224,10 +229,10 @@ impl MethodExpander {
                             } else {
                                 self.body.extend(quote! {
                                     compile_error!(concat!(
-                                        "参数 `", stringify!(#ident),
-                                        "` 是 Option<复杂类型> 且使用了 #[query(\"…\")]。\
-                                        复杂类型请去掉名字，直接写 #[query]，我们会在 Some 时按字段展开；\
-                                        例如：#[query] opt: Option<MyStruct>"
+                                        "Parameter `", stringify!(#ident),
+                                        "` is Option<complex type> and uses #[query(\"…\")]. ",
+                                        "For complex types, remove the explicit name and use #[query] instead; ",
+                                        "we will expand its fields when the value is Some. ",
                                     ));
                                 });
                             }
@@ -258,10 +263,10 @@ impl MethodExpander {
                             } else {
                                 self.body.extend(quote! {
                                     compile_error!(concat!(
-                                        "参数 `", stringify!(#ident),
-                                        "` 是 Vec<复杂类型>/切片 且使用了 #[query(\"…\")]。\
-                                        默认不支持将复杂元素用单一 key 重复提交（语义不明确）。\
-                                        建议改为单个复杂对象 #[query]，或自行实现展平策略。"
+                                        "Parameter `", stringify!(#ident),
+                                        "` is Vec<complex type> or slice and uses #[query(\"…\")]. ",
+                                        "Submitting complex elements with a single repeated key is not supported by default (ambiguous semantics). ",
+                                        "Consider using a single complex object with #[query], or implement a custom flattening strategy."
                                     ));
                                 });
                             }
@@ -275,10 +280,11 @@ impl MethodExpander {
                             } else {
                                 self.body.extend(quote! {
                                     compile_error!(concat!(
-                                        "参数 `", stringify!(#ident),
-                                        "` 是 Vec<复杂类型>/切片 并使用了 #[query]。\
-                                        默认不支持将多个复杂对象直接展开为 query 串（会产生 0[a]=… 这样的键）。\
-                                        如确需支持，请改为单个复杂对象，或后续提供自定义展平选项。"
+                                        "Parameter `", stringify!(#ident),
+                                        "` is Option<complex type> and uses #[query(\"…\")]. ",
+                                        "For complex types, remove the explicit name and use #[query] instead; ",
+                                        "we will expand its fields when the value is Some. ",
+                                        "Example: #[query] opt: Option<MyStruct>"
                                     ));
                                 });
                             }
@@ -297,7 +303,7 @@ impl MethodExpander {
     }
 
     pub fn stage_apply_json(mut self) -> Self {
-        // 允许最多一个 #[json] 参数（如果你允许多个，可以最后一次为准）
+        // 允许最多一个 #[json] 参数
         for p in &self.ctx.params {
             if let ParamKind::Json = &p.kind {
                 let ident = &p.ident;

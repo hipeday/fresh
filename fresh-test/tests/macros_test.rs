@@ -1,8 +1,8 @@
-use std::time::Duration;
 use fresh_test::{
-    macros::{FreshAttribute, FreshAttributeClient},
     SearchQuery,
+    macros::{FreshAttribute, FreshAttributeClient},
 };
+use std::time::Duration;
 
 #[test]
 fn test_fresh_attribute_parsing() {
@@ -26,9 +26,15 @@ fn test_fresh_attribute_parsing() {
 }
 
 #[tokio::test]
-async fn test_search() {
+async fn test_get() {
     let client = FreshAttributeClient::new_default().unwrap();
-    let response = client.search(SearchQuery { q: "test".into(), page: 1 }).await.unwrap();
+    let response = client
+        .get(SearchQuery {
+            q: "test".into(),
+            page: 1,
+        })
+        .await
+        .unwrap();
     println!("{}", serde_json::to_string(&response).unwrap());
     assert_eq!(response.url, "https://httpbin.org/get?q=test&page=1");
     let args = response.args;
@@ -37,8 +43,20 @@ async fn test_search() {
 }
 
 #[tokio::test]
-async fn test_search_in_path() {
+async fn test_search() {
     let client = FreshAttributeClient::new_default().unwrap();
-    let response = client.search_in_path(SearchQuery { q: "test".into(), page: 1 }, String::from("zhuzhuxia")).await.unwrap();
+    let response = client
+        .search(
+            SearchQuery {
+                q: "test".into(),
+                page: 1,
+            },
+            String::from("zhuzhuxia"),
+            30,
+            123,
+            String::from("trace-xyz"),
+        )
+        .await
+        .unwrap();
     println!("{}", serde_json::to_string(&response).unwrap());
 }

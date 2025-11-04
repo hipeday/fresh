@@ -194,6 +194,7 @@ fn expand_method_impl(meta: &crate::parser::MethodMeta) -> syn::Result<TokenStre
         .validate()?
         .stage_init()
         .stage_replace_path_params()
+        .stage_build_url()
         .stage_request_builder()
         .stage_apply_static_headers()
         .stage_apply_param_headers()

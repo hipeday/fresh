@@ -14,17 +14,20 @@ pub trait FreshAttribute {
         path = "/get",
         headers(foo = "bar", token_auth = "abcd1234", foo = "override-bar"),
         timeout = 13000,
-        connect_timeout = 14000,
-        read_timeout = 15000,
     )]
-    async fn search(&self, #[query] q: crate::SearchQuery) -> fresh::Result<crate::HttpBinGet>;
+    async fn get(&self, #[query] q: crate::SearchQuery) -> fresh::Result<crate::HttpBinGet>;
 
     #[get(
-        path = "/get",
+        path = "/anything/{id}",
         headers(foo = "bar", token_auth = "abcd1234", foo = "override-bar"),
         timeout = 13000,
-        connect_timeout = 14000,
-        read_timeout = 15000,
     )]
-    async fn search_in_path(&self, #[query] q: crate::SearchQuery, #[query] nickname: String) -> fresh::Result<crate::HttpBinGet>;
+    async fn search(
+        &self,
+        #[query] q: crate::SearchQuery,
+        #[query] nickname: String,
+        #[query("age")] age: u32,
+        #[path] id: u32,
+        #[header("X-Trace-Id")] trace: String,
+    ) -> fresh::Result<crate::HttpBinGet>;
 }
