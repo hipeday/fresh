@@ -66,7 +66,7 @@ version = "1.0.103"
 
 # Quote crate for quoting Rust code (used in waygate-macros)
 [workspace.dependencies.quote]
-version = "1.0.41"
+version = "1.0.40"
 
 # Derive-Builder for builder pattern
 [workspace.dependencies.derive_builder]
