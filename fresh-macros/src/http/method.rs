@@ -2,29 +2,29 @@ use std::str::FromStr;
 use quote::quote;
 
 /// HTTP 请求方法枚举
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Method {
-    Get,
-    Post,
-    Put,
-    Head,
-    Options,
-    Delete,
-    Patch,
-    Trace,
+    GET,
+    POST,
+    PUT,
+    HEAD,
+    OPTIONS,
+    DELETE,
+    PATCH,
+    TRACE,
 }
 
 impl Method {
     pub fn to_token(&self) -> proc_macro2::TokenStream {
         match self {
-            Method::Get => quote! { ::fresh::reqwest::Method::GET },
-            Method::Post => quote! { ::fresh::reqwest::Method::POST },
-            Method::Put => quote! { ::fresh::reqwest::Method::PUT },
-            Method::Head => quote! { ::fresh::reqwest::Method::HEAD },
-            Method::Options => quote! { ::fresh::reqwest::Method::OPTIONS },
-            Method::Delete => quote! { ::fresh::reqwest::Method::DELETE },
-            Method::Patch => quote! { ::fresh::reqwest::Method::PATCH },
-            Method::Trace => quote! { ::fresh::reqwest::Method::TRACE },
+            Method::GET => quote! { ::fresh::reqwest::Method::GET },
+            Method::POST => quote! { ::fresh::reqwest::Method::POST },
+            Method::PUT => quote! { ::fresh::reqwest::Method::PUT },
+            Method::HEAD => quote! { ::fresh::reqwest::Method::HEAD },
+            Method::OPTIONS => quote! { ::fresh::reqwest::Method::OPTIONS },
+            Method::DELETE => quote! { ::fresh::reqwest::Method::DELETE },
+            Method::PATCH => quote! { ::fresh::reqwest::Method::PATCH },
+            Method::TRACE => quote! { ::fresh::reqwest::Method::TRACE },
         }
     }
 }
@@ -34,14 +34,14 @@ impl FromStr for Method {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
-            "GET" => Ok(Method::Get),
-            "POST" => Ok(Method::Post),
-            "PUT" => Ok(Method::Put),
-            "HEAD" => Ok(Method::Head),
-            "OPTIONS" => Ok(Method::Options),
-            "DELETE" => Ok(Method::Delete),
-            "PATCH" => Ok(Method::Patch),
-            "TRACE" => Ok(Method::Trace),
+            "GET" => Ok(Method::GET),
+            "POST" => Ok(Method::POST),
+            "PUT" => Ok(Method::PUT),
+            "HEAD" => Ok(Method::HEAD),
+            "OPTIONS" => Ok(Method::OPTIONS),
+            "DELETE" => Ok(Method::DELETE),
+            "PATCH" => Ok(Method::PATCH),
+            "TRACE" => Ok(Method::TRACE),
             _ => Err(format!("Unsupported HTTP method: {}", s)),
         }
     }
@@ -49,6 +49,6 @@ impl FromStr for Method {
 
 impl From<String> for Method {
     fn from(value: String) -> Self {
-        Method::from_str(&value).unwrap_or(Method::Get)
+        Method::from_str(&value).unwrap_or(Method::GET)
     }
 }

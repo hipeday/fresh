@@ -18,4 +18,13 @@ pub trait FreshAttribute {
         read_timeout = 15000,
     )]
     async fn search(&self, #[query] q: crate::SearchQuery) -> fresh::Result<crate::HttpBinGet>;
+
+    #[get(
+        path = "/get",
+        headers(foo = "bar", token_auth = "abcd1234", foo = "override-bar"),
+        timeout = 13000,
+        connect_timeout = 14000,
+        read_timeout = 15000,
+    )]
+    async fn search_in_path(&self, #[query] q: crate::SearchQuery, #[query] nickname: String) -> fresh::Result<crate::HttpBinGet>;
 }

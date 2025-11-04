@@ -35,3 +35,10 @@ async fn test_search() {
     assert_eq!(args["q"], "test");
     assert_eq!(args["page"], "1");
 }
+
+#[tokio::test]
+async fn test_search_in_path() {
+    let client = FreshAttributeClient::new_default().unwrap();
+    let response = client.search_in_path(SearchQuery { q: "test".into(), page: 1 }, String::from("zhuzhuxia")).await.unwrap();
+    println!("{}", serde_json::to_string(&response).unwrap());
+}

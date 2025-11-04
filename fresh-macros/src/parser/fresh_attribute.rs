@@ -1,23 +1,8 @@
-use crate::{
-    http::method::Method,
-    util::extract_ok_type,
-};
+use crate::{http::method::Method, util::extract_ok_type};
 use derive_builder::Builder;
 use proc_macro2::TokenStream;
 use std::str::FromStr;
-use syn::{
-    Attribute,
-    ItemTrait,
-    LitInt,
-    LitStr,
-    TraitItem,
-    parse::Parser,
-    spanned::Spanned,
-    FnArg,
-    Pat,
-    punctuated::Punctuated,
-    token::Comma
-};
+use syn::{Attribute, FnArg, ItemTrait, LitInt, LitStr, Pat, TraitItem, parse::Parser, punctuated::Punctuated, spanned::Spanned, token::Comma, Type};
 
 const DEFAULT_USER_AGENT_KEY: &str = "user-agent";
 const DEFAULT_USER_AGENT_VALUE: &str = concat!("fresh-client/", env!("CARGO_PKG_VERSION"));
@@ -43,7 +28,7 @@ pub struct FreshAttributes {
     pub read_timeout: Option<u64>,      // 读取超时，单位毫秒
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FreshRouteAttributes {
     pub method: Option<Method>,         // HTTP 方法
     pub path: Option<String>,           // 请求路径
@@ -63,9 +48,9 @@ pub struct MethodMeta {
 #[derive(Clone, Debug)]
 pub enum ParamKind {
     Path,
-    Query,
+    Query { key: Option<LitStr> },
     Json,
-    Header(String),
+    Header { name: Option<LitStr> },
     Other,
 }
 
@@ -75,14 +60,23 @@ pub struct ParamMeta {
     // 参数名
     pub ident: syn::Ident,
     // 参数类型（可能为空，例如 `self` 参数）
-    pub ty: Option<syn::Type>,
+    pub ty: Option<Type>,
     // 标注类型
     pub kind: ParamKind,
+    // 参数基数
+    pub cardinality: Cardinality,
+}
+
+#[derive(Clone, Debug)]
+pub enum Cardinality {
+    Single,
+    Option,
+    Many, // Vec<T> 或切片 &[T]
 }
 
 #[derive(Default, Builder, Debug)]
 struct AttributeProperties {
-    #[builder(default = "Some(Method::Get)")]
+    #[builder(default = "Some(Method::GET)")]
     method: Option<Method>, // HTTP 方法
     #[builder(default = "Some(String::from(\"http://localhost\"))")]
     endpoint: Option<String>, // 基础端点 URL
@@ -206,14 +200,12 @@ impl crate::parser::Parser<ItemTrait> for MethodMetaParser {
             // 解析参数属性
             let params = ParamMetaParser::parse(&method.sig.inputs)?;
 
-            out.push(
-                MethodMeta {
-                    sig_ident,
-                    ok_ty,
-                    params,
-                    route,
-                }
-            )
+            out.push(MethodMeta {
+                sig_ident,
+                params,
+                route,
+                ok_ty,
+            })
         }
         Ok(out)
     }
@@ -234,10 +226,22 @@ impl crate::parser::Parser<Punctuated<FnArg, syn::token::Comma>> for ParamMetaPa
                 let mut kind = ParamKind::Other;
                 let mut header_name: Option<String> = None;
                 for a in &pt.attrs {
-                    let name = a.path().get_ident().map(|i| i.to_string()).unwrap_or_default();
+                    let name = a
+                        .path()
+                        .get_ident()
+                        .map(|i| i.to_string())
+                        .unwrap_or_default();
                     match name.as_str() {
                         "path" => kind = ParamKind::Path,
-                        "query" => kind = ParamKind::Query,
+                        "query" => {
+                            if let Some(syn::Lit::Str(s)) = a.parse_args().ok() {
+                                kind = ParamKind::Query {
+                                    key: Some(LitStr::new(&s.value(), ident.span())),
+                                };
+                            } else {
+                                kind = ParamKind::Query { key: None };
+                            }
+                        }
                         "json" => kind = ParamKind::Json,
                         "header" => {
                             if let Some(syn::Lit::Str(s)) = a.parse_args().ok() {
@@ -248,13 +252,49 @@ impl crate::parser::Parser<Punctuated<FnArg, syn::token::Comma>> for ParamMetaPa
                     }
                 }
                 if let Some(h) = header_name {
-                    kind = ParamKind::Header(h);
+                    kind = ParamKind::Header {
+                        name: Some(LitStr::new(&h, ident.span())),
+                    };
                 }
-                params.push(ParamMeta { ident, ty: Some((*pt.ty).clone()), kind });
+                params.push(ParamMeta {
+                    ident,
+                    ty: Some((*pt.ty).clone()),
+                    kind,
+                    cardinality: detect_cardinality(&*pt.ty),
+                });
             }
         }
 
         Ok(params)
+    }
+}
+
+
+fn detect_cardinality(ty: &Type) -> Cardinality {
+    fn last_ident_of_path(ty: &Type) -> Option<&syn::Ident> {
+        let Type::Path(tp) = ty else { return None; };
+        tp.path.segments.last().map(|seg| &seg.ident)
+    }
+    let Some(id) = last_ident_of_path(ty) else {
+        return Cardinality::Single;
+    };
+    match id.to_string().as_str() {
+        // Option<...>
+        "Option" => Cardinality::Option,
+        // Vec<...>
+        "Vec" => Cardinality::Many,
+        // &[T] 或 [T; N]（切片/数组）：按 Many 处理
+        _ => match ty {
+            Type::Reference(r) => {
+                if let Type::Slice(_) = &*r.elem {
+                    Cardinality::Many
+                } else {
+                    Cardinality::Single
+                }
+            }
+            Type::Slice(_) => Cardinality::Many,
+            _ => Cardinality::Single,
+        }
     }
 }
 
@@ -285,9 +325,14 @@ fn get_parser<'a>(builder: &'a mut AttributePropertiesBuilder) -> impl Parser<Ou
                     Ok(())
                 })?;
                 // 判断是否有User-Agent头，如果没有则添加默认头
-                let has_user_agent = headers.iter().any(|(k, _)| k.to_lowercase() == DEFAULT_USER_AGENT_KEY);
+                let has_user_agent = headers
+                    .iter()
+                    .any(|(k, _)| k.to_lowercase() == DEFAULT_USER_AGENT_KEY);
                 if !has_user_agent {
-                    headers.push((DEFAULT_USER_AGENT_KEY.to_string(), DEFAULT_USER_AGENT_VALUE.to_string()));
+                    headers.push((
+                        DEFAULT_USER_AGENT_KEY.to_string(),
+                        DEFAULT_USER_AGENT_VALUE.to_string(),
+                    ));
                 }
                 builder.headers(headers);
             }

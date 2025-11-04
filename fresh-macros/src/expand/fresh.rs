@@ -1,11 +1,11 @@
 use super::MacroCall;
 use crate::{
     parser::{
-        ParamKind,
         FreshAttributeParser,
         MethodMetaParser,
         Parser
-    }
+    },
+    expand::method::{MethodCtx, MethodExpander}
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -35,7 +35,7 @@ impl super::Expander for FreshExpander {
                 // 展开每个方法
                 let mut method_impls = Vec::new();
                 for m in &methods {
-                    method_impls.push(expand_method_impl(&m));
+                    method_impls.push(expand_method_impl(&m)?);
                 }
 
                 // 构造函数
@@ -68,7 +68,7 @@ impl super::Expander for FreshExpander {
                 let headers_stmt = if headers_pairs.is_empty() {
                     quote! {}
                 } else {
-                    quote! { .headers(vec![#(#headers_pairs),*]) }
+                    quote! { .headers(vec![ #(#headers_pairs),* ]) }
                 };
 
                 // 生成 timeout 语句
@@ -171,95 +171,55 @@ fn strip_custom_attrs_in_trait(trait_item: &mut ItemTrait) {
     }
 }
 
-fn expand_method_impl(m: &crate::parser::MethodMeta) -> TokenStream {
-    let ident = &m.sig_ident; // Ident 实现 ToTokens，可以直接插值
-    let ok_ty = &m.ok_ty; // 已是 TokenStream，可以直接插值
-    let route = &m.route;
-    // 如果HTTP 方法为空则报错
-    let Some(method) = route.method.as_ref() else {
-        // 注意：compile_error! 只接受字面量，不能用 "{}", 用 format! 先生成字面量，或用 concat! + stringify!
-        let msg = format!("HTTP method not specified for method {}", ident); // ident: syn::Ident
-        return quote::quote! {
-            compile_error!(#msg);
-        };
+fn expand_method_impl(meta: &crate::parser::MethodMeta) -> syn::Result<TokenStream> {
+    // 将 MethodMeta 映射到 MethodCtx（补齐默认值/校验）
+    let route = meta.route.clone();
+    let method = route.method.ok_or_else(|| syn::Error::new(meta.sig_ident.span(), "缺少 HTTP 方法"))?;
+    let path = route.path.clone().ok_or_else(|| syn::Error::new(meta.sig_ident.span(), "缺少 path"))?;
+
+    let sig_ident = meta.sig_ident.clone(); // 方法签名
+
+    let ctx = MethodCtx {
+        sig_ident,
+        ok_ty: meta.ok_ty.clone(),
+        method,
+        endpoint: None, // trait 级别的可传入
+        path,
+        route_headers: route.headers.clone(),
+        timeout_ms: route.timeout,
+        params: meta.params.clone(), // 统一参数模型
     };
 
-    let method_tokens = method.to_token();
+    let body = MethodExpander::new(ctx)
+        .validate()?
+        .stage_init()
+        .stage_replace_path_params()
+        .stage_request_builder()
+        .stage_apply_static_headers()
+        .stage_apply_param_headers()
+        .stage_apply_query()
+        .stage_apply_json()
+        .stage_apply_timeout()
+        .stage_send_and_denser()
+        .finish();
 
-    // impl 参数签名（移除参数属性）
+    // 用参数元信息组装 impl 方法的形参列表（跳过 self 等无类型参数）
     let mut impl_params = Vec::new();
-    for p in &m.params {
+    for p in &meta.params {
         if let Some(ty) = &p.ty {
             let id = &p.ident;
             impl_params.push(quote! { #id: #ty });
         }
     }
 
-    // path 占位符替换
-    let Some(path) = route.path.as_ref() else {
-        let msg = format!("Path not specified for method {}", ident);
-        return quote::quote! {
-            compile_error!(#msg);
-        };
-    };
-    let path_lit = quote! { #path }; // 先绑定要插值的字段
-    let mut path_build = quote! { let mut __path = #path_lit.to_string(); };
-    for p in &m.params {
-        if matches!(p.kind, ParamKind::Path) {
-            let id = &p.ident;
-            path_build = quote! {
-                #path_build
-                let __ph = format!("{{{}}}", stringify!(#id));
-                __path = __path.replace(&__ph, &::std::string::ToString::to_string(&#id));
-            };
-        }
-    }
+    let ident = &meta.sig_ident;
+    let ok_ty = &meta.ok_ty;
 
-    // 构建请求（依次链式追加）
-    let mut req_chain = quote! {
-        let __url = self.core.endpoint().join(&__path)?;
-        let __req = self.core.client().request(#method_tokens, __url)
-    };
-
-    // 构建超时等参数
-    if let Some(timeout) = route.timeout {
-        let timeout_duration = quote! { ::std::time::Duration::from_millis(#timeout) };
-        req_chain = quote! { #req_chain .timeout(#timeout_duration) };
-    }
-    
-    // 构建请求头参数
-    route.headers.iter().for_each(|(k, v)| {
-        let name_lit = k;
-        let value_lit = v;
-        req_chain = quote! { #req_chain .header(#name_lit, #value_lit) };
-    });
-
-    for p in &m.params {
-        match &p.kind {
-            ParamKind::Query => {
-                let id = &p.ident;
-                req_chain = quote! { #req_chain .query(&#id) };
-            }
-            ParamKind::Header(name) => {
-                let id = &p.ident;
-                let name_lit = name;
-                req_chain = quote! { #req_chain .header(#name_lit, &::std::string::ToString::to_string(&#id)) };
-            }
-            ParamKind::Json => {
-                let id = &p.ident;
-                req_chain = quote! { #req_chain .json(&#id) };
-            }
-            _ => {}
-        }
-    }
-
-    quote! {
+    // 返回完整的方法定义
+    Ok(quote! {
         async fn #ident(&self, #(#impl_params),*) -> ::fresh::Result<#ok_ty> {
-            #path_build
-            #req_chain;
-            let __resp = __req.send().await?.error_for_status()?;
-            let __out = __resp.json::<#ok_ty>().await?;
-            Ok(__out)
+            #body
         }
-    }
+    })
+
 }

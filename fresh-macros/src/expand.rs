@@ -8,6 +8,7 @@
 //! 5) 为每个方法展开基于 reqwest 的实际调用代码
 
 mod fresh;
+mod method;
 
 /// 宏输入类型枚举
 pub enum MacroForm {
