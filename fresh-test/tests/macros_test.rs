@@ -29,6 +29,7 @@ fn test_fresh_attribute_parsing() {
 async fn test_search() {
     let client = FreshAttributeClient::new_default().unwrap();
     let response = client.search(SearchQuery { q: "test".into(), page: 1 }).await.unwrap();
+    println!("{}", serde_json::to_string(&response).unwrap());
     assert_eq!(response.url, "https://httpbin.org/get?q=test&page=1");
     let args = response.args;
     assert_eq!(args["q"], "test");

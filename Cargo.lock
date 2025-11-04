@@ -393,7 +393,6 @@ name = "fresh-test"
 version = "0.1.0"
 dependencies = [
  "fresh",
- "fresh-macros",
  "serde",
  "serde_json",
  "tokio",

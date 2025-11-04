@@ -221,6 +221,19 @@ fn expand_method_impl(m: &crate::parser::MethodMeta) -> TokenStream {
         let __req = self.core.client().request(#method_tokens, __url)
     };
 
+    // 构建超时等参数
+    if let Some(timeout) = route.timeout {
+        let timeout_duration = quote! { ::std::time::Duration::from_millis(#timeout) };
+        req_chain = quote! { #req_chain .timeout(#timeout_duration) };
+    }
+    
+    // 构建请求头参数
+    route.headers.iter().for_each(|(k, v)| {
+        let name_lit = k;
+        let value_lit = v;
+        req_chain = quote! { #req_chain .header(#name_lit, #value_lit) };
+    });
+
     for p in &m.params {
         match &p.kind {
             ParamKind::Query => {

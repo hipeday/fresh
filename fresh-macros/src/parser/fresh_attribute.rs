@@ -19,6 +19,9 @@ use syn::{
     token::Comma
 };
 
+const DEFAULT_USER_AGENT_KEY: &str = "user-agent";
+const DEFAULT_USER_AGENT_VALUE: &str = concat!("fresh-client/", env!("CARGO_PKG_VERSION"));
+
 // 接口级宏上的属性解析器
 pub struct FreshAttributeParser;
 
@@ -46,8 +49,6 @@ pub struct FreshRouteAttributes {
     pub path: Option<String>,           // 请求路径
     pub headers: Vec<(String, String)>, // 额外请求头
     pub timeout: Option<u64>,           // 请求超时，单位毫秒
-    pub connect_timeout: Option<u64>,   // 连接超时，单位毫秒
-    pub read_timeout: Option<u64>,      // 读取超时，单位毫秒
 }
 
 #[derive(Debug)]
@@ -172,8 +173,6 @@ impl crate::parser::Parser<Vec<Attribute>> for FreshRouteAttributeParser {
             path: properties.path,
             headers: properties.headers,
             timeout: properties.timeout,
-            connect_timeout: properties.connect_timeout,
-            read_timeout: properties.read_timeout,
         }))
     }
 }
@@ -285,6 +284,11 @@ fn get_parser<'a>(builder: &'a mut AttributePropertiesBuilder) -> impl Parser<Ou
                     headers.push((key, val.value()));
                     Ok(())
                 })?;
+                // 判断是否有User-Agent头，如果没有则添加默认头
+                let has_user_agent = headers.iter().any(|(k, _)| k.to_lowercase() == DEFAULT_USER_AGENT_KEY);
+                if !has_user_agent {
+                    headers.push((DEFAULT_USER_AGENT_KEY.to_string(), DEFAULT_USER_AGENT_VALUE.to_string()));
+                }
                 builder.headers(headers);
             }
             Some("timeout") => {

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod macros;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct HttpBinGet {
     pub url: String,
     pub args: serde_json::Value,

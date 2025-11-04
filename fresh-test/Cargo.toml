@@ -8,7 +8,6 @@ edition.workspace = true
 
 [dependencies]
 fresh.workspace = true
-fresh-macros.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
