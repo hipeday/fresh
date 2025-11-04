@@ -17,14 +17,14 @@ pub enum Method {
 impl Method {
     pub fn to_token(&self) -> proc_macro2::TokenStream {
         match self {
-            Method::GET => quote! { ::fresh::reqwest::Method::GET },
-            Method::POST => quote! { ::fresh::reqwest::Method::POST },
-            Method::PUT => quote! { ::fresh::reqwest::Method::PUT },
-            Method::HEAD => quote! { ::fresh::reqwest::Method::HEAD },
-            Method::OPTIONS => quote! { ::fresh::reqwest::Method::OPTIONS },
-            Method::DELETE => quote! { ::fresh::reqwest::Method::DELETE },
-            Method::PATCH => quote! { ::fresh::reqwest::Method::PATCH },
-            Method::TRACE => quote! { ::fresh::reqwest::Method::TRACE },
+            Method::GET => quote! { ::waygate::reqwest::Method::GET },
+            Method::POST => quote! { ::waygate::reqwest::Method::POST },
+            Method::PUT => quote! { ::waygate::reqwest::Method::PUT },
+            Method::HEAD => quote! { ::waygate::reqwest::Method::HEAD },
+            Method::OPTIONS => quote! { ::waygate::reqwest::Method::OPTIONS },
+            Method::DELETE => quote! { ::waygate::reqwest::Method::DELETE },
+            Method::PATCH => quote! { ::waygate::reqwest::Method::PATCH },
+            Method::TRACE => quote! { ::waygate::reqwest::Method::TRACE },
         }
     }
 }

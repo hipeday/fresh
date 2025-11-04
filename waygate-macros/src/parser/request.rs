@@ -5,13 +5,13 @@ use std::str::FromStr;
 use syn::{Attribute, FnArg, ItemTrait, LitInt, LitStr, Pat, TraitItem, parse::Parser, punctuated::Punctuated, spanned::Spanned, token::Comma, Type};
 
 const DEFAULT_USER_AGENT_KEY: &str = "user-agent";
-const DEFAULT_USER_AGENT_VALUE: &str = concat!("fresh-client/", env!("CARGO_PKG_VERSION"));
+const DEFAULT_USER_AGENT_VALUE: &str = concat!("waygate-client/", env!("CARGO_PKG_VERSION"));
 
 // 接口级宏上的属性解析器
-pub struct FreshAttributeParser;
+pub struct RequestParser;
 
 // 路由级宏上的属性解析器
-pub struct FreshRouteAttributeParser;
+pub struct RequestRouteParser;
 
 // 方法元信息解析器
 pub struct MethodMetaParser;
@@ -20,7 +20,7 @@ pub struct ParamMetaParser;
 
 /// 接口级解析属性
 #[derive(Debug)]
-pub struct FreshAttributes {
+pub struct WaygateAttributes {
     pub endpoint: Option<String>,       // 基础端点 URL
     pub headers: Vec<(String, String)>, // 额外请求头
     pub timeout: Option<u64>,           // 请求超时，单位毫秒
@@ -29,7 +29,7 @@ pub struct FreshAttributes {
 }
 
 #[derive(Debug, Clone)]
-pub struct FreshRouteAttributes {
+pub struct RequestRouteAttributes {
     pub method: Option<Method>,         // HTTP 方法
     pub path: Option<String>,           // 请求路径
     pub headers: Vec<(String, String)>, // 额外请求头
@@ -41,7 +41,7 @@ pub struct MethodMeta {
     pub sig_ident: syn::Ident,
     pub ok_ty: TokenStream,
     pub params: Vec<ParamMeta>,
-    pub route: FreshRouteAttributes,
+    pub route: RequestRouteAttributes,
 }
 
 /// 参数标注类型
@@ -92,7 +92,7 @@ struct AttributeProperties {
     read_timeout: Option<u64>, // 读取超时，单位毫秒
 }
 
-impl FreshRouteAttributes {
+impl RequestRouteAttributes {
     fn set_path_if_none(&mut self, path: String) {
         if self.path.is_none() {
             self.path = Some(path);
@@ -106,8 +106,8 @@ impl AttributeProperties {
     }
 }
 
-impl crate::parser::Parser<TokenStream> for FreshAttributeParser {
-    type Output = FreshAttributes;
+impl crate::parser::Parser<TokenStream> for RequestParser {
+    type Output = WaygateAttributes;
 
     fn parse(input: &TokenStream) -> syn::Result<Self::Output> {
         let mut builder = AttributeProperties::builder();
@@ -119,10 +119,10 @@ impl crate::parser::Parser<TokenStream> for FreshAttributeParser {
         let properties = builder.build().map_err(|e| {
             syn::Error::new(
                 proc_macro2::Span::call_site(),
-                format!("Failed to build FreshAttributes: {}", e),
+                format!("Failed to build WaygateAttributes: {}", e)
             )
         })?;
-        Ok(FreshAttributes {
+        Ok(WaygateAttributes {
             endpoint: properties.endpoint,
             headers: properties.headers,
             timeout: properties.timeout,
@@ -132,8 +132,8 @@ impl crate::parser::Parser<TokenStream> for FreshAttributeParser {
     }
 }
 
-impl crate::parser::Parser<Vec<Attribute>> for FreshRouteAttributeParser {
-    type Output = Option<FreshRouteAttributes>;
+impl crate::parser::Parser<Vec<Attribute>> for RequestRouteParser {
+    type Output = Option<RequestRouteAttributes>;
 
     fn parse(attrs: &Vec<Attribute>) -> syn::Result<Self::Output> {
         let mut builder = AttributeProperties::builder();
@@ -159,10 +159,10 @@ impl crate::parser::Parser<Vec<Attribute>> for FreshRouteAttributeParser {
         let properties = builder.build().map_err(|e| {
             syn::Error::new(
                 proc_macro2::Span::call_site(),
-                format!("Failed to build FreshRouteAttributes: {}", e),
+                format!("Failed to build WaygateRouteAttributes: {}", e),
             )
         })?;
-        Ok(Some(FreshRouteAttributes {
+        Ok(Some(RequestRouteAttributes {
             method: properties.method,
             path: properties.path,
             headers: properties.headers,
@@ -188,7 +188,7 @@ impl crate::parser::Parser<ItemTrait> for MethodMetaParser {
             });
 
             // 解析路由属性
-            let route = FreshRouteAttributeParser::parse(&method.attrs)?;
+            let route = RequestRouteParser::parse(&method.attrs)?;
 
             // 如果没有路由属性，跳过该方法
             let Some(mut route) = route else {

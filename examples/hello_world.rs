@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use fresh::request;
+use waygate::request;
 
 #[derive(Debug, Serialize)]
 struct SearchQuery {
@@ -21,28 +21,28 @@ struct HttpBinGet {
 
 #[request(
     endpoint = "https://httpbin.org",
-    headers(foo = "bar", user_agent = "fresh-test"),
+    headers(foo = "bar", user_agent = "waygate-test"),
     timeout = 10000,
     connect_timeout = 11000,
     read_timeout = 12000,
 )]
 trait Api {
     #[get(path = "/get")]
-    async fn search(&self, #[query] q: SearchQuery) -> fresh::Result<HttpBinGet>;
+    async fn search(&self, #[query] q: SearchQuery) -> waygate::Result<HttpBinGet>;
 
     #[post(path = "/post")]
-    async fn create_user(&self, #[json] body: CreateUser) -> fresh::Result<serde_json::Value>;
+    async fn create_user(&self, #[json] body: CreateUser) -> waygate::Result<serde_json::Value>;
 
     #[get(path = "/anything/{id}")]
     async fn anything(
         &self,
         #[path] id: u64,
         #[header("X-Trace-Id")] trace: String,
-    ) -> fresh::Result<serde_json::Value>;
+    ) -> waygate::Result<serde_json::Value>;
 }
 
 #[tokio::main]
-async fn main() -> fresh::Result<()> {
+async fn main() -> waygate::Result<()> {
     let api = ApiClient::new_default()?;
 
     let out = api

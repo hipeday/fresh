@@ -10,6 +10,6 @@ mod parser;
 #[proc_macro_attribute]
 pub fn request(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = expand::MacroForm::Attribute { attr: attr.into(), item: item.into() };
-    let call = expand::MacroCall::new(expand::MacroKind::Fresh, input);
+    let call = expand::MacroCall::new(expand::MacroKind::Request, input);
     expand::dispatch(call).into()
 }

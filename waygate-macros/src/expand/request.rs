@@ -1,7 +1,7 @@
 use super::MacroCall;
 use crate::{
     parser::{
-        FreshAttributeParser,
+        RequestParser,
         MethodMetaParser,
         Parser
     },
@@ -11,14 +11,14 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{FnArg, ItemTrait, TraitItem};
 
-pub struct FreshExpander;
+pub struct WaygateExpander;
 
-impl super::Expander for FreshExpander {
+impl super::Expander for WaygateExpander {
     fn expand(&self, call: MacroCall) -> syn::Result<TokenStream> {
         match call.form {
             super::MacroForm::Attribute { attr, item } => {
                 // 解析宏属性
-                let attributes = FreshAttributeParser::parse(&attr)?;
+                let attributes = RequestParser::parse(&attr)?;
 
                 // 展开宏
                 let mut trait_item: ItemTrait = syn::parse2(item.clone())?;
@@ -40,8 +40,8 @@ impl super::Expander for FreshExpander {
 
                 // 构造函数
                 let mut ctor_extra = quote! {
-                    pub fn with_endpoint(endpoint: &str) -> ::fresh::Result<Self> {
-                        Ok(Self { core: ::fresh::HttpClient::with_endpoint(endpoint)? })
+                    pub fn with_endpoint(endpoint: &str) -> ::waygate::Result<Self> {
+                        Ok(Self { core: ::waygate::HttpClient::with_endpoint(endpoint)? })
                     }
                 };
 
@@ -103,17 +103,17 @@ impl super::Expander for FreshExpander {
                 // 附加 new_default 构造函数
                 ctor_extra = quote! {
                     #ctor_extra
-                    pub fn new_default() -> ::fresh::Result<Self> {
-                        let option = ::fresh::HttpClientOption::builder()
+                    pub fn new_default() -> ::waygate::Result<Self> {
+                        let option = ::waygate::HttpClientOption::builder()
                             #endpoint_stmt
                             #headers_stmt
                             #timeout_stmt
                             #connect_timeout_stmt
                             #read_timeout_stmt
                             .build()
-                            .map_err(|e| ::fresh::Error::InvalidArgument(format!("Build HttpClientOption failed: {}", e)))?;
+                            .map_err(|e| ::waygate::Error::InvalidArgument(format!("Build HttpClientOption failed: {}", e)))?;
 
-                        Ok(Self { core: ::fresh::HttpClient::new(option)? })
+                        Ok(Self { core: ::waygate::HttpClient::new(option)? })
                     }
                 };
 
@@ -121,11 +121,11 @@ impl super::Expander for FreshExpander {
                     #trait_item
 
                     pub struct #client_ident {
-                        pub core: ::fresh::HttpClient,
+                        pub core: ::waygate::HttpClient,
                     }
 
                     impl #client_ident {
-                        pub fn new(core: ::fresh::HttpClient) -> Self { Self { core } }
+                        pub fn new(core: ::waygate::HttpClient) -> Self { Self { core } }
                         #ctor_extra
                     }
 
@@ -138,7 +138,7 @@ impl super::Expander for FreshExpander {
             }
             _ => Err(syn::Error::new_spanned(
                 TokenStream::new(),
-                "Unsupported macro form for FreshExpander",
+                "Unsupported macro form for WaygateExpander",
             )),
         }
     }
@@ -218,7 +218,7 @@ fn expand_method_impl(meta: &crate::parser::MethodMeta) -> syn::Result<TokenStre
 
     // 返回完整的方法定义
     Ok(quote! {
-        async fn #ident(&self, #(#impl_params),*) -> ::fresh::Result<#ok_ty> {
+        async fn #ident(&self, #(#impl_params),*) -> ::waygate::Result<#ok_ty> {
             #body
         }
     })

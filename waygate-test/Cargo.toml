@@ -1,5 +1,5 @@
 [package]
-name = "fresh-test"
+name = "waygate-test"
 version.workspace = true
 authors.workspace = true
 description.workspace = true
@@ -7,7 +7,7 @@ license-file.workspace = true
 edition.workspace = true
 
 [dependencies]
-fresh.workspace = true
+waygate.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

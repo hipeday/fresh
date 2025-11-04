@@ -1,19 +1,19 @@
-use fresh_test::{
+use waygate_test::{
     SearchQuery,
-    macros::{FreshAttribute, FreshAttributeClient},
+    macros::{Api, ApiClient},
 };
 use std::time::Duration;
 
 #[test]
-fn test_fresh_attribute_parsing() {
-    let client = FreshAttributeClient::new_default().unwrap();
+fn test_request_attribute_parsing() {
+    let client = ApiClient::new_default().unwrap();
     let endpoint = client.core.endpoint();
     let options = client.core.options();
     let headers = &options.headers;
     for (key, value) in headers {
         match key.as_str() {
             "foo" => assert_eq!(value, "bar"),
-            "user-agent" => assert_eq!(value, "fresh-test"),
+            "user-agent" => assert_eq!(value, "waygate-test"),
             "User-Agent" => {} // 默认头，允许存在
             _ => panic!("Unexpected header: {}: {}", key, value),
         }
@@ -27,7 +27,7 @@ fn test_fresh_attribute_parsing() {
 
 #[tokio::test]
 async fn test_get() {
-    let client = FreshAttributeClient::new_default().unwrap();
+    let client = ApiClient::new_default().unwrap();
     let response = client
         .get(SearchQuery {
             q: "test".into(),
@@ -44,7 +44,7 @@ async fn test_get() {
 
 #[tokio::test]
 async fn test_search() {
-    let client = FreshAttributeClient::new_default().unwrap();
+    let client = ApiClient::new_default().unwrap();
     let response = client
         .search(
             SearchQuery {

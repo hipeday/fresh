@@ -1,4 +1,4 @@
-use fresh::request;
+use waygate::request;
 
 #[allow(async_fn_in_trait)]
 #[request(
@@ -8,14 +8,14 @@ use fresh::request;
     connect_timeout = 11000,
     read_timeout = 12000,
 )]
-pub trait FreshAttribute {
+pub trait Api {
 
     #[get(
         path = "/get",
         headers(foo = "bar", token_auth = "abcd1234", foo = "override-bar"),
         timeout = 13000,
     )]
-    async fn get(&self, #[query] q: crate::SearchQuery) -> fresh::Result<crate::HttpBinGet>;
+    async fn get(&self, #[query] q: crate::SearchQuery) -> waygate::Result<crate::HttpBinGet>;
 
     #[get(
         path = "/anything/{id}",
@@ -29,5 +29,5 @@ pub trait FreshAttribute {
         #[query("age")] age: u32,
         #[path] id: u32,
         #[header("X-Trace-Id")] trace: String,
-    ) -> fresh::Result<crate::HttpBinGet>;
+    ) -> waygate::Result<crate::HttpBinGet>;
 }

@@ -1,7 +1,15 @@
 [package]
-name = "fresh"
+name = "waygate"
 version.workspace = true
 edition.workspace = true
+description.workspace = true
+license-file.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 thiserror.workspace = true
@@ -11,10 +19,10 @@ url.workspace = true
 derive_builder.workspace = true
 
 # feature-dependent dependencies
-fresh-macros = { workspace = true, optional = true }
+waygate-macros = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 
 [features]
 default = ["macros"]
-macros = ["dep:fresh-macros"]
+macros = ["dep:waygate-macros"]
 log = ["tracing"]

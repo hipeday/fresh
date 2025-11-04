@@ -1,24 +1,30 @@
 # Workspace configuration
 [workspace]
 resolver = "2"
-members = ["fresh", "fresh-macros", "examples", "fresh-test"]
+members = ["waygate", "waygate-macros", "examples", "waygate-test"]
 
 # Package metadata
 [workspace.package]
 version = "0.1.0"
 authors = ["Jixiang Liu"]
-description = "A lightweight Retrofit/Forest-style declarative HTTP client on top of reqwest"
+description = "A declarative, type-safe, and ergonomic HTTP client for Rust built on top of Reqwest."
 license-file = "LICENSE"
 edition = "2024"
+homepage = "https://github.com/hipeday/waygate"
+repository = "https://github.com/hipeday/waygate.git"
+readme = "README.md"
+keywords = ["http-client", "declarative", "rest-client", "reqwest"]
+categories = ["network-programming", "asynchronous", "http-clients"]
+documentation = "https://docs.rs/waygate"
 
 # Define shared dependencies for all workspace members
 [workspace.dependencies]
 
-[workspace.dependencies.fresh]
-path = "fresh"
+[workspace.dependencies.waygate]
+path = "waygate"
 
-[workspace.dependencies.fresh-macros]
-path = "fresh-macros"
+[workspace.dependencies.waygate-macros]
+path = "waygate-macros"
 
 # Tokio async runtime
 [workspace.dependencies.tokio]
@@ -39,10 +45,6 @@ features = ["derive"]
 [workspace.dependencies.serde_json]
 version = "1.0.145"
 
-# serde_urlencoded for URL encoding
-[workspace.dependencies.serde_urlencoded]
-version = "0.7.1"
-
 # Thiserror for error handling
 [workspace.dependencies.thiserror]
 version = "2.0.17"
@@ -51,11 +53,7 @@ version = "2.0.17"
 [workspace.dependencies.url]
 version = "2.5.7"
 
-# HTTP crate for HTTP types
-[workspace.dependencies.http]
-version = "1.3.1"
-
-# Syn crate for parsing Rust code (used in fresh-macros)
+# Syn crate for parsing Rust code (used in waygate-macros)
 [workspace.dependencies.syn]
 version = "2.0.108"
 features = ["full", "extra-traits", "parsing"]
@@ -64,7 +62,7 @@ features = ["full", "extra-traits", "parsing"]
 [workspace.dependencies.proc-macro2]
 version = "1.0.103"
 
-# Quote crate for quoting Rust code (used in fresh-macros)
+# Quote crate for quoting Rust code (used in waygate-macros)
 [workspace.dependencies.quote]
 version = "1.0.41"
 
@@ -75,12 +73,3 @@ version = "0.20.2"
 # Tracing for logging and diagnostics
 [workspace.dependencies.tracing]
 version = "0.1.41"
-[workspace.dependencies.tracing-subscriber]
-version = "0.3.20"
-
-[workspace.dependencies.strum]
-version = "0.27.2"
-features = ["derive"]
-
-[workspace.dependencies.strum_macros]
-version = "0.27.2"
